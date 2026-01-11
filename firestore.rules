@@ -1,0 +1,87 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===================================
+    // REGRAS DE SEGURANÇA - ARTICULAIA
+    // ===================================
+    
+    // Helper: Verificar se o usuário está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper: Verificar se é o próprio usuário
+    function isOwner(email) {
+      return isAuthenticated() && request.auth.token.email == email;
+    }
+    
+    // Helper: Verificar se é admin (via custom claim ou lista hardcode)
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email == 'ramzas23@gmail.com' ||
+        request.auth.token.email == 'ramzas_23@hotmail.com' ||
+        request.auth.token.get('admin', false) == true
+      );
+    }
+    
+    // ===================================
+    // COLEÇÃO: artifacts/{projectId}/public/data/profiles_v2
+    // ===================================
+    match /artifacts/{projectId}/public/data/profiles_v2/{email} {
+      // LEITURA: Qualquer usuário autenticado pode ler perfis (para ranking/chat)
+      allow read: if isAuthenticated();
+      
+      // CRIAÇÃO: Qualquer usuário pode criar seu próprio perfil
+      allow create: if isAuthenticated() && 
+                       request.resource.data.email == request.auth.token.email;
+      
+      // ATUALIZAÇÃO: Apenas o próprio usuário ou admin
+      allow update: if isOwner(email) || isAdmin();
+      
+      // EXCLUSÃO: Apenas o próprio usuário ou admin
+      allow delete: if isOwner(email) || isAdmin();
+    }
+    
+    // ===================================
+    // COLEÇÃO: artifacts/{projectId}/public/data/messages_v3
+    // ===================================
+    match /artifacts/{projectId}/public/data/messages_v3/{messageId} {
+      // LEITURA: Apenas usuários autenticados
+      allow read: if isAuthenticated();
+      
+      // CRIAÇÃO: Apenas se for o próprio usuário enviando
+      allow create: if isAuthenticated() && 
+                       request.resource.data.senderId == request.auth.token.email;
+      
+      // ATUALIZAÇÃO/EXCLUSÃO: Apenas admin (para moderação)
+      allow update, delete: if isAdmin();
+    }
+    
+    // ===================================
+    // COLEÇÃO: artifacts/{projectId}/public/data/exercises_history (FUTURO)
+    // ===================================
+    match /artifacts/{projectId}/public/data/exercises_history/{exerciseId} {
+      // LEITURA: Apenas o próprio usuário ou admin
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.token.email || 
+        isAdmin()
+      );
+      
+      // CRIAÇÃO: Apenas o próprio usuário
+      allow create: if isAuthenticated() && 
+                       request.resource.data.userId == request.auth.token.email;
+      
+      // ATUALIZAÇÃO/EXCLUSÃO: Bloqueado (histórico é imutável)
+      allow update, delete: if false;
+    }
+    
+    // ===================================
+    // TUDO O MAIS: BLOQUEADO POR PADRÃO
+    // ===================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
