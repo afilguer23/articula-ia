@@ -4,76 +4,40 @@ service cloud.firestore {
   match /databases/{database}/documents {
     
     // ===================================
-    // REGRAS DE SEGURANÇA - ARTICULAIA
+    // COLEÇÃO: Perfis dos Alunos
     // ===================================
-    
-    // Helper: Verificar se o usuário está autenticado
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-    
-    // Helper: Verificar se é o próprio usuário
-    function isOwner(email) {
-      return isAuthenticated() && request.auth.token.email == email;
-    }
-    
-    // Helper: Verificar se é admin (via custom claim ou lista hardcode)
-    function isAdmin() {
-      return isAuthenticated() && (
-        request.auth.token.email == 'ramzas23@gmail.com' ||
-        request.auth.token.email == 'ramzas_23@hotmail.com' ||
-        request.auth.token.get('admin', false) == true
-      );
+    match /artifacts/fonoaudiologo-33594/public/data/profiles_v2/{email} {
+      // Permite que qualquer pessoa veja o ranking e crie seu perfil inicial
+      allow read: if true;
+      allow create: if true;
+      
+      // TRAVA DE SEGURANÇA PARA XP:
+      // O banco só aceita a atualização se o novo valor de XP for, no máximo,
+      // 35 pontos maior que o valor que já estava gravado.
+      // Também garante que o email não seja alterado.
+      allow update: if request.resource.data.xp <= resource.data.xp + 35
+                    && request.resource.data.email == resource.data.email;
     }
     
     // ===================================
-    // COLEÇÃO: artifacts/{projectId}/public/data/profiles_v2
+    // COLEÇÃO: Chat da Turma
     // ===================================
-    match /artifacts/{projectId}/public/data/profiles_v2/{email} {
-      // LEITURA: Qualquer usuário autenticado pode ler perfis (para ranking/chat)
-      allow read: if isAuthenticated();
-      
-      // CRIAÇÃO: Qualquer usuário pode criar seu próprio perfil
-      allow create: if isAuthenticated() && 
-                       request.resource.data.email == request.auth.token.email;
-      
-      // ATUALIZAÇÃO: Apenas o próprio usuário ou admin
-      allow update: if isOwner(email) || isAdmin();
-      
-      // EXCLUSÃO: Apenas o próprio usuário ou admin
-      allow delete: if isOwner(email) || isAdmin();
+    match /artifacts/fonoaudiologo-33594/public/data/messages_v3/{msgId} {
+      // Permissão total para leitura e escrita (chat público)
+      allow read, write: if true;
     }
     
     // ===================================
-    // COLEÇÃO: artifacts/{projectId}/public/data/messages_v3
+    // FUTURO: Histórico de Exercícios
     // ===================================
-    match /artifacts/{projectId}/public/data/messages_v3/{messageId} {
-      // LEITURA: Apenas usuários autenticados
-      allow read: if isAuthenticated();
+    match /artifacts/fonoaudiologo-33594/public/data/exercises_history/{exerciseId} {
+      // Qualquer um pode criar (para logging)
+      allow create: if true;
       
-      // CRIAÇÃO: Apenas se for o próprio usuário enviando
-      allow create: if isAuthenticated() && 
-                       request.resource.data.senderId == request.auth.token.email;
+      // Apenas leitura (histórico é imutável)
+      allow read: if true;
       
-      // ATUALIZAÇÃO/EXCLUSÃO: Apenas admin (para moderação)
-      allow update, delete: if isAdmin();
-    }
-    
-    // ===================================
-    // COLEÇÃO: artifacts/{projectId}/public/data/exercises_history (FUTURO)
-    // ===================================
-    match /artifacts/{projectId}/public/data/exercises_history/{exerciseId} {
-      // LEITURA: Apenas o próprio usuário ou admin
-      allow read: if isAuthenticated() && (
-        resource.data.userId == request.auth.token.email || 
-        isAdmin()
-      );
-      
-      // CRIAÇÃO: Apenas o próprio usuário
-      allow create: if isAuthenticated() && 
-                       request.resource.data.userId == request.auth.token.email;
-      
-      // ATUALIZAÇÃO/EXCLUSÃO: Bloqueado (histórico é imutável)
+      // Bloqueado atualização e exclusão (dados imutáveis)
       allow update, delete: if false;
     }
     
