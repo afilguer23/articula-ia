@@ -1,0 +1,17 @@
+{
+    "name": "articula-ia",
+    "version": "1.0.0",
+    "description": "ArticulaIA - Plataforma de fonoaudiologia com IA",
+    "type": "module",
+    "scripts": {
+        "dev": "vercel dev",
+        "build": "echo 'Static site - no build needed'",
+        "deploy": "vercel --prod"
+    },
+    "dependencies": {
+        "firebase-admin": "^12.0.0"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    }
+}
