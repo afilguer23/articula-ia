@@ -37,3 +37,7 @@ build/
 # Vercel
 .vercel
 .vercel/
+
+# Firebase Service Account (SENSITIVE!)
+*firebase-adminsdk*.json
+fonoaudiologo-*.json
