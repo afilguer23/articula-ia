@@ -11,7 +11,7 @@ service cloud.firestore {
       allow read: if true;
       allow create: if true;
       
-      // TRAVA DE SEGURANÇA PARA XP:
+      // ⚠️ TRAVA ANTI-TRAPAÇA DE XP (MANTIDA!)
       // O banco só aceita a atualização se o novo valor de XP for, no máximo,
       // 35 pontos maior que o valor que já estava gravado.
       // Também garante que o email não seja alterado.
@@ -28,16 +28,16 @@ service cloud.firestore {
     }
     
     // ===================================
-    // FUTURO: Histórico de Exercícios
+    // COLEÇÃO: Histórico de Exercícios (NOVO!)
     // ===================================
     match /artifacts/fonoaudiologo-33594/public/data/exercises_history/{exerciseId} {
-      // Qualquer um pode criar (para logging)
+      // Qualquer um pode criar (para logging de exercícios)
       allow create: if true;
       
-      // Apenas leitura (histórico é imutável)
+      // Qualquer um pode ler (para ver gráficos)
       allow read: if true;
       
-      // Bloqueado atualização e exclusão (dados imutáveis)
+      // ⚠️ Histórico é IMUTÁVEL (não pode editar nem deletar)
       allow update, delete: if false;
     }
     
