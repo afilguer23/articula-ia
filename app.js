@@ -11,6 +11,9 @@ const CONFIG = {
 let app, db, auth, localUsers = {}, activeU = null, isAdmin = false, currentChatId = 'global', chatUnsub;
 let mediaRecorder, audioChunks = [], globalStream, refAudioUrl = null, userAudioUrl = null, refFeedbackAudioUrl = null, isRecording = false;
 
+// URL base das APIs do Vercel (backend seguro)
+const VERCEL_API_URL = 'https://articula-ia.vercel.app/api';
+
 let isAppReady = false;
 
 // --- SISTEMA DE ÁUDIO GLOBAL (MAIS ROBUSTO) ---
@@ -61,31 +64,42 @@ function toggleAudio(url) {
 const base64ToArrayBuffer = (base64) => { const binary_string = window.atob(base64); const len = binary_string.length; const bytes = new Uint8Array(len); for (let i = 0; i < len; i++) bytes[i] = binary_string.charCodeAt(i); return bytes.buffer; };
 const pcmToWav = (pcm16Data, sampleRate) => { const numChannels = 1; const bytesPerSample = 2; const buffer = new ArrayBuffer(44 + pcm16Data.length * bytesPerSample); const view = new DataView(buffer); let offset = 0; const writeString = (s) => { for (let i = 0; i < s.length; i++) view.setUint8(offset++, s.charCodeAt(i)); }; const write32 = (d) => { view.setUint32(offset, d, true); offset += 4; }; const write16 = (d) => { view.setUint16(offset, d, true); offset += 2; }; writeString('RIFF'); write32(36 + pcm16Data.length * bytesPerSample); writeString('WAVE'); writeString('fmt '); write32(16); write16(1); write16(numChannels); write32(sampleRate); write32(sampleRate * numChannels * bytesPerSample); write16(numChannels * bytesPerSample); write16(16); writeString('data'); write32(pcm16Data.length * bytesPerSample); for (let i = 0; i < pcm16Data.length; i++) { view.setInt16(offset, pcm16Data[i], true); offset += 2; } return new Blob([view], { type: 'audio/wav' }); };
 
-// --- API CALL com Tratamento de Erros e Chave Dinâmica ---
-async function apiCall(model, body, key) {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-
-    if (!r.ok) {
-        let errorData = await r.json().catch(() => ({ error: { message: `Erro HTTP ${r.status}` } }));
-        throw new Error(errorData.error?.message || `Erro de API não especificado (${r.status})`);
+// Helper para converter Base64 de volta para Blob
+const base64ToBlob = (base64, mimeType) => {
+    const byteCharacters = atob(base64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
     }
-    return await r.json();
-}
+    const byteArray = new Uint8Array(byteNumbers);
+    return new Blob([byteArray], { type: mimeType });
+};
 
-async function generateAudio(text, key, voice) {
-    if (!key || key.length < 20) throw new Error("Chave API ausente ou inválida para gerar áudio.");
+// --- GERAR ÁUDIO VIA VERCEL API (Seguro) ---
+async function generateAudio(text, voice) {
+    if (!activeU?.email) throw new Error("Usuário não autenticado");
 
-    const ttsBody = { contents: [{ parts: [{ text: text }] }], generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice || "Kore" } } } } };
     try {
-        const data = await apiCall("gemini-2.5-flash-preview-tts", ttsBody, key);
-        const b64 = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-        if (b64) { const pcm16 = new Int16Array(base64ToArrayBuffer(b64)); return URL.createObjectURL(pcmToWav(pcm16, 24000)); }
+        const response = await fetch(`${VERCEL_API_URL}/generate-audio`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                userId: activeU.email,
+                text: text,
+                voice: voice || 'Kore'
+            })
+        });
 
+        const data = await response.json();
+        if (!data.success) throw new Error(data.error || 'Falha no TTS');
+
+        // Converter Base64 de volta para Blob URL
+        const audioBlob = base64ToBlob(data.audio, 'audio/wav');
+        return URL.createObjectURL(audioBlob);
     } catch (e) {
         console.error("Erro na geração de áudio (TTS):", e);
         throw new Error("Falha na API TTS: " + (e.message || "Erro desconhecido."));
     }
-    return null;
 }
 
 // --- BOTÃO MIC (Blindagem Total e Início da Gravação) ---
@@ -143,17 +157,22 @@ async function processUserAudio() {
         const prompt = `Aja como fonoaudiólogo. Paciente ${$('tAge').value} anos. Alvo: "${targetText}". Analise áudio. JSON: {"score": 0-100, "feedback": "texto curto"}`;
 
         try {
-            const body = { contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: "audio/webm", data: b64 } }] }], generationConfig: { responseMimeType: "application/json" } };
-            const data = await apiCall("gemini-2.5-flash-preview-09-2025", body, k);
+            // Chamar API do Vercel para análise de fala
+            const response = await fetch(`${VERCEL_API_URL}/analyze-speech`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: activeU.email,
+                    audioBase64: b64,
+                    targetText: targetText,
+                    age: $('tAge').value
+                })
+            });
 
-            let res;
-            try {
-                const jsonString = data.candidates[0].content.parts[0].text.replace(/```json|```/g, '').trim();
-                res = JSON.parse(jsonString);
-            } catch (e) {
-                console.error("JSON inválido recebido:", data.candidates[0].content.parts[0].text);
-                res = { score: 0, feedback: "Análise falhou (JSON inválido da IA). Tente novamente." };
-            }
+            const data = await response.json();
+            if (!data.success) throw new Error(data.error || 'Análise falhou');
+
+            const res = { score: data.score, feedback: data.feedback };
 
             $('resultArea').classList.remove('hidden');
             $('scoreText').innerText = res.score || '--';
@@ -162,7 +181,7 @@ async function processUserAudio() {
             $('resultFeedback').innerText = res.feedback || "Tente novamente";
 
             $('micStatus').innerText = "Criando dica...";
-            refFeedbackAudioUrl = await generateAudio(res.feedback, k, $('tVoice').value).catch(e => {
+            refFeedbackAudioUrl = await generateAudio(res.feedback, $('tVoice').value).catch(e => {
                 console.error("Falha ao gerar áudio da dica:", e);
                 return null;
             });
@@ -443,13 +462,24 @@ $('btnGen').addEventListener('click', async (e) => {
             currentText = $('tFree').value.trim();
         }
         else {
-            let prompt = `Gere ${$('tQty').value} `;
-            if (mode === 'sentence') prompt += `frases simples para criança ${$('tAge').value} anos.`; else if (mode === 'word') prompt += `palavras comuns criança ${$('tAge').value} anos.`; else if (mode === 'phoneme') prompt += `palavras com fonema '${$('tPho').value}' para criança ${$('tAge').value} anos.`;
-            prompt += ` Apenas texto puro.`;
+            // Chamar API do Vercel para gerar texto
+            const response = await fetch(`${VERCEL_API_URL}/generate-text`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: activeU.email,
+                    mode: mode,
+                    quantity: $('tQty').value,
+                    age: $('tAge').value,
+                    phoneme: $('tPho')?.value || ''
+                })
+            });
 
-            const textData = await apiCall("gemini-2.5-flash-preview-09-2025", { contents: [{ parts: [{ text: prompt }] }] }, k);
-            const lines = textData.candidates[0].content.parts[0].text.replace(/\*/g, '').split('\n').filter(l => l.trim().length > 0);
-            currentText = lines[Math.floor(Math.random() * lines.length)];
+            const data = await response.json();
+            if (!data.success || !data.texts || data.texts.length === 0) {
+                throw new Error(data.error || 'Nenhum texto gerado');
+            }
+            currentText = data.texts[Math.floor(Math.random() * data.texts.length)];
         }
 
         if (!currentText) throw new Error("Falha ao obter texto da IA.");
@@ -457,7 +487,7 @@ $('btnGen').addEventListener('click', async (e) => {
         $('targetDisplay').innerText = currentText;
         btn.innerHTML = `<div class="spinner"></div> Voz IA...`;
 
-        refAudioUrl = await generateAudio(currentText, k, $('tVoice').value);
+        refAudioUrl = await generateAudio(currentText, $('tVoice').value);
 
         if (refAudioUrl) {
             $('btnTargetPlay').disabled = false;
