@@ -1,0 +1,35 @@
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary
+*.tmp
+*.bak
+.cache/
+
+# Environment
+.env
+.env.local
+
+# Node (caso adicione depois)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build (caso adicione depois)
+dist/
+build/

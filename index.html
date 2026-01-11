@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ArticulaIA V111 - Contraste Máximo (Modo Claro)</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'], display: ['"Outfit"', 'sans-serif'] },
+                    colors: { slate: { 850: '#151e32', 950: '#020617' } }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* ESTILOS VISUAIS (Mantendo o Padrão Premium) */
+        :root {
+            --primary-grad: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        }
+
+        /* FIX V111: Usando cor preta (#000000) no modo claro para o máximo contraste */
+        body {
+            background-color: #f8fafc;
+            color: #000000;
+            overflow: hidden;
+            transition: background-color 0.4s ease;
+        }
+
+        body.dark-theme {
+            background-color: #0f172a;
+            color: #f1f5f9;
+        }
+
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        body.dark-theme ::-webkit-scrollbar-thumb {
+            background: #334155;
+        }
+
+        .layout-container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            z-index: 20;
+            transition: transform 0.3s ease;
+        }
+
+        body.dark-theme .sidebar {
+            background: #1e293b;
+            border-color: #334155;
+            color: #f1f5f9;
+        }
+
+        .main-panel {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: absolute;
+                inset: 0;
+                transform: translateX(-100%);
+                width: 85%;
+                max-width: 320px;
+                box-shadow: 10px 0 25px rgba(0, 0, 0, 0.1);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+        }
+
+        /* Componentes Modernos */
+        .card-modern {
+            background: white;
+            border-radius: 24px;
+            border: 1px solid #f1f5f9;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        body.dark-theme .card-modern {
+            background: #1e293b;
+            border: 1px solid #334155;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+
+        /* FIX V111: Cor do texto do input no modo claro mais escura */
+        .input-modern {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px;
+            width: 100%;
+            outline: none;
+            color: #1e293b;
+            /* slate-800 */
+            font-weight: 500;
+        }
+
+        body.dark-theme .input-modern {
+            background: #0f172a;
+            border-color: #334155;
+            color: #f1f5f9;
+        }
+
+        .btn-gradient {
+            background: var(--primary-grad);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        /* MIC BUTTON (Blindado) */
+        #micButton {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 25px rgba(239, 68, 68, 0.4);
+            border: 4px solid #fecaca;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            z-index: 50;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        #micButton:active {
+            transform: scale(0.95);
+        }
+
+        body.dark-theme #micButton {
+            border-color: #7f1d1d;
+        }
+
+        #micButton.recording {
+            background: #b91c1c;
+            transform: scale(1.1);
+            animation: pulse-red 1.5s infinite;
+        }
+
+        @keyframes pulse-red {
+            0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 20px rgba(239, 68, 68, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
+
+        /* --- CHAT WIDGET - WHATSAPP STYLE --- */
+        #chatWidget {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 700px;
+            height: 550px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.95);
+            transition: 0.2s;
+            border: 1px solid #e2e8f0;
+        }
+
+        body.dark-theme #chatWidget {
+            background: #1e293b;
+            border-color: #334155;
+        }
+
+        #chatWidget.open {
+            opacity: 1;
+            pointer-events: all;
+            transform: scale(1);
+        }
+
+        .chat-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Coluna Lateral (Alunos) */
+        .chat-sidebar {
+            width: 260px;
+            border-right: 1px solid #f1f5f9;
+            background: #f8fafc;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body.dark-theme .chat-sidebar {
+            background: #151e32;
+            border-color: #334155;
+        }
+
+        /* Coluna Principal (Conversa) */
+        .chat-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            position: relative;
+        }
+
+        body.dark-theme .chat-main {
+            background: #1e293b;
+        }
+
+        /* Responsividade do Chat (Mobile vira tela única) */
+        @media (max-width: 768px) {
+            #chatWidget {
+                width: 95vw;
+                height: 85vh;
+                right: 2.5vw;
+                bottom: 20px;
+            }
+
+            .chat-sidebar {
+                width: 100%;
+                position: absolute;
+                inset: 0;
+                z-index: 10;
+                transition: transform 0.3s;
+            }
+
+            .chat-main {
+                width: 100%;
+                position: absolute;
+                inset: 0;
+                z-index: 20;
+                transform: translateX(100%);
+                transition: transform 0.3s;
+            }
+
+            /* Classes para alternar view no mobile */
+            #chatWidget.mobile-view-room .chat-sidebar {
+                transform: translateX(-20%);
+                opacity: 0;
+                pointer-events: none;
+            }
+
+            #chatWidget.mobile-view-room .chat-main {
+                transform: translateX(0);
+            }
+        }
+
+        /* Mensagens */
+        .msg-bubble {
+            max-width: 75%;
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            margin-bottom: 6px;
+            position: relative;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .msg-mine {
+            align-self: flex-end;
+            background: var(--primary-grad);
+            color: white;
+            border-bottom-right-radius: 2px;
+        }
+
+        /* FIX V111: Texto na mensagem de outros também deve ser escuro */
+        .msg-other {
+            align-self: flex-start;
+            background: white;
+            color: #1e293b;
+            border: 1px solid #e2e8f0;
+            border-bottom-left-radius: 2px;
+        }
+
+        body.dark-theme .msg-other {
+            background: #334155;
+            color: #e2e8f0;
+            border-color: #475569;
+        }
+
+        /* Contato na lista */
+        .contact-item {
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: 0.2s;
+            border-radius: 8px;
+            margin: 4px 8px;
+        }
+
+        .contact-item:hover {
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        body.dark-theme .contact-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .contact-item.active {
+            background: #e0e7ff;
+        }
+
+        body.dark-theme .contact-item.active {
+            background: #312e81;
+        }
+
+        /* Resizers */
+        .resizer {
+            position: absolute;
+            width: 25px;
+            height: 25px;
+            z-index: 110;
+        }
+
+        .resizer.nw {
+            top: 0;
+            left: 0;
+            cursor: nw-resize;
+        }
+
+        .resizer.ne {
+            top: 0;
+            right: 0;
+            cursor: ne-resize;
+        }
+
+        .resizer.sw {
+            bottom: 0;
+            left: 0;
+            cursor: sw-resize;
+        }
+
+        .resizer.se {
+            bottom: 0;
+            right: 0;
+            cursor: se-resize;
+        }
+
+        #loadingScreen {
+            transition: opacity 0.5s ease-out;
+        }
+
+        /* Modal Overlay & Box */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            /* Inicia oculto */
+            justify-content: center;
+            align-items: center;
+            z-index: 9998;
+        }
+
+        .modal-box {
+            background: white;
+            padding: 24px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 400px;
+            transform: scale(0.95);
+            animation: modal-enter 0.3s forwards;
+        }
+
+        body.dark-theme .modal-box {
+            background: #1e293b;
+        }
+
+        @keyframes modal-enter {
+            to {
+                transform: scale(1);
+            }
+        }
+    </style>
+</head>
+
+<body class="antialiased">
+    <div id="loadingScreen" class="fixed inset-0 bg-slate-900 flex flex-col items-center justify-center z-[9999]">
+        <i data-lucide="mic-2" class="w-16 h-16 text-indigo-500 animate-bounce mb-4"></i>
+        <h2 class="text-2xl font-display font-bold text-white">ArticulaIA</h2>
+    </div>
+
+    <div class="layout-container">
+        <aside id="sidebar" class="sidebar">
+            <header class="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white"><i
+                            data-lucide="mic-2" class="w-6 h-6"></i></div>
+                    <h1 class="font-display font-bold text-xl text-slate-800 dark:text-white">ArticulaIA</h1>
+                </div>
+                <button onclick="toggleSidebar()" class="md:hidden"><i data-lucide="x"
+                        class="w-6 h-6 text-slate-900 dark:text-slate-400"></i></button>
+            </header>
+            <div id="usersList" class="flex-1 overflow-y-auto p-4 space-y-1"></div>
+            <div class="p-4 border-t border-slate-100 dark:border-slate-700 space-y-3">
+                <div class="flex gap-2">
+                    <button onclick="$('modalReg').style.display='flex'"
+                        class="flex-1 btn-gradient py-2.5 text-sm flex items-center justify-center gap-2"><i
+                            data-lucide="user-plus" class="w-4 h-4"></i> Novo</button>
+                    <button onclick="toggleTheme()"
+                        class="w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-600 flex items-center justify-center"><i
+                            data-lucide="moon" class="w-4 h-4 text-slate-900 dark:text-slate-300"></i></button>
+                </div>
+                <button onclick="$('modalAdm').style.display='flex'"
+                    class="w-full text-[10px] font-bold text-slate-900 dark:text-slate-400 uppercase tracking-widest hover:text-indigo-500 py-2">Área
+                    Profissional</button>
+            </div>
+        </aside>
+
+        <main class="main-panel">
+            <button onclick="toggleSidebar()"
+                class="md:hidden absolute top-4 left-4 z-10 p-2 bg-white dark:bg-slate-800 rounded-lg shadow"><i
+                    data-lucide="menu" class="w-6 h-6 text-slate-900 dark:text-white"></i></button>
+
+            <div id="viewEmpty" class="h-full flex flex-col items-center justify-center text-slate-400 hidden">
+                <div
+                    class="w-24 h-24 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-6 animate-pulse">
+                    <i data-lucide="user" class="w-10 h-10 opacity-30"></i></div>
+                <h3 class="font-display font-semibold text-xl">Selecione um Aluno</h3>
+            </div>
+
+            <div id="viewDashboard" class="hidden h-full overflow-y-auto p-6 md:p-10">
+                <div class="max-w-5xl mx-auto">
+                    <div
+                        class="card-modern p-8 mb-8 flex flex-col md:flex-row items-center gap-6 relative overflow-hidden">
+                        <div id="dashAvatar"
+                            class="w-24 h-24 rounded-3xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center text-4xl font-display font-bold shadow-xl shadow-indigo-500/20 z-10">
+                            ?</div>
+                        <div class="text-center md:text-left z-10 flex-1">
+                            <h2 id="dashName"
+                                class="text-4xl font-display font-bold text-slate-900 dark:text-white mb-2">Nome</h2>
+                            <div class="flex flex-wrap gap-3 justify-center md:justify-start">
+                                <div
+                                    class="px-4 py-1.5 rounded-full bg-emerald-100/50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-sm font-bold flex gap-2 border border-emerald-200 dark:border-emerald-500/20">
+                                    <i data-lucide="trophy" class="w-4 h-4"></i> <span id="dashXP">0</span> XP</div>
+                                <button onclick="$('modalEdit').style.display='flex'"
+                                    class="px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-700/50 text-slate-900 dark:text-slate-400 text-sm font-semibold hover:bg-slate-200 flex gap-2"><i
+                                        data-lucide="settings" class="w-4 h-4"></i> Config</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div onclick="route('tutor')"
+                            class="card-modern p-6 cursor-pointer hover:border-blue-500/50 transition duration-300 group">
+                            <div
+                                class="w-14 h-14 rounded-2xl bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-4 group-hover:scale-110 transition">
+                                <i data-lucide="mic" class="w-7 h-7"></i></div>
+                            <h3 class="font-display font-bold text-xl text-slate-900 dark:text-white">Tutor IA</h3>
+                        </div>
+                        <div onclick="toggleChat()"
+                            class="card-modern p-6 cursor-pointer hover:border-emerald-500/50 transition duration-300 group">
+                            <div
+                                class="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-4 group-hover:scale-110 transition">
+                                <i data-lucide="message-circle" class="w-7 h-7"></i></div>
+                            <h3 class="font-display font-bold text-xl text-slate-900 dark:text-white">Chat</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="viewTutor" class="hidden h-full flex flex-col items-center justify-start p-4 overflow-y-auto">
+                <div class="w-full max-w-lg space-y-6 mt-6 pb-20">
+                    <button onclick="route('dashboard')"
+                        class="flex items-center gap-2 text-slate-900 dark:text-slate-500 hover:text-indigo-600 font-semibold text-sm"><i
+                            data-lucide="arrow-left" class="w-4 h-4"></i> Voltar</button>
+
+                    <div class="card-modern p-6 relative">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="col-span-2">
+                                <label
+                                    class="block text-xs font-bold text-slate-900 dark:text-slate-400 mb-1 ml-1">Exercício</label>
+                                <select id="tMode" class="input-modern">
+                                    <option value="sentence">Frases Curtas</option>
+                                    <option value="word">Palavras Soltas</option>
+                                    <option value="phoneme">Foco no Fonema</option>
+                                    <option value="free_text">Escrita Livre</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-900 dark:text-slate-400 mb-1 ml-1">Voz
+                                    IA</label>
+                                <select id="tVoice" class="input-modern">
+                                    <option value="Kore">Feminina</option>
+                                    <option value="Fenrir">Masculina</option>
+                                </select>
+                            </div>
+                            <div><label
+                                    class="block text-xs font-bold text-slate-900 dark:text-slate-400 mb-1 ml-1">Qtd.</label><input
+                                    type="number" id="tQty" value="3" class="input-modern text-center font-bold"></div>
+                            <div class="col-span-2 md:col-span-2"><label
+                                    class="block text-xs font-bold text-slate-900 dark:text-slate-400 mb-1 ml-1">Idade</label><input
+                                    type="number" id="tAge" value="5" readonly
+                                    class="input-modern bg-slate-100 dark:bg-slate-900 text-slate-400 text-center cursor-not-allowed">
+                            </div>
+                            <div class="col-span-2 hidden" id="divFreeText"><label
+                                    class="block text-xs font-bold text-slate-900 dark:text-slate-400 mb-1 ml-1">Seu
+                                    Texto</label><textarea id="tFree" rows="2"
+                                    class="input-modern resize-none"></textarea></div>
+                            <div class="col-span-2 hidden" id="divPho"><label
+                                    class="block text-xs font-bold text-slate-900 dark:text-slate-400 mb-1 ml-1">Fonema</label><input
+                                    type="text" id="tPho" class="input-modern text-center font-bold"></div>
+                        </div>
+                    </div>
+
+                    <div class="card-modern p-6 text-center space-y-6">
+                        <button type="button" id="btnGen"
+                            class="w-full btn-gradient py-4 rounded-xl text-lg shadow-lg flex items-center justify-center gap-2"><i
+                                data-lucide="sparkles" class="w-5 h-5"></i> Gerar Novo Desafio</button>
+
+                        <div
+                            class="relative bg-slate-50 dark:bg-slate-900 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 min-h-[100px] flex items-center justify-between gap-4">
+                            <p id="targetDisplay"
+                                class="text-xl md:text-2xl font-display font-medium text-slate-900 dark:text-slate-200 italic text-left flex-1">
+                                Toque no botão acima...</p>
+                            <button id="btnTargetPlay" disabled onclick="toggleAudio(refAudioUrl)"
+                                class="shrink-0 w-12 h-12 rounded-full bg-white dark:bg-slate-800 text-indigo-600 shadow-lg border flex items-center justify-center hover:scale-110 transition disabled:opacity-50 disabled:grayscale">
+                                <i data-lucide="volume-2" class="w-6 h-6"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col items-center justify-center gap-4">
+                        <button type="button" id="micButton">
+                            <i data-lucide="mic" class="w-8 h-8 pointer-events-none"></i>
+                        </button>
+                        <p id="micStatus"
+                            class="text-sm font-semibold text-slate-900 dark:text-slate-400 animate-pulse">Toque para
+                            gravar</p>
+                    </div>
+
+                    <div id="resultArea" class="hidden card-modern p-6 border-l-4 border-l-emerald-500">
+                        <div
+                            class="flex items-center justify-between mb-4 pb-4 border-b border-slate-100 dark:border-slate-700">
+                            <span
+                                class="text-xs font-bold text-slate-900 dark:text-slate-400 uppercase tracking-wider">Resultado</span>
+                            <div class="flex gap-2">
+                                <button id="btnUserPlay" onclick="toggleAudio(userAudioUrl)"
+                                    class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-300 flex items-center justify-center hover:bg-emerald-100 hover:text-emerald-600 transition">
+                                    <i data-lucide="user" class="w-5 h-5"></i>
+                                </button>
+                                <button id="btnTipPlay" disabled onclick="toggleAudio(refFeedbackAudioUrl)"
+                                    class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-300 flex items-center justify-center hover:bg-yellow-100 hover:text-yellow-600 transition disabled:opacity-50">
+                                    <i data-lucide="lightbulb" class="w-5 h-5"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4 mb-4">
+                            <span id="scoreText" class="text-5xl font-display font-black text-slate-200">--</span>
+                            <div class="flex-1">
+                                <p class="text-xs text-slate-900 dark:text-slate-400 mb-1">Feedback:</p>
+                                <p id="resultFeedback" class="text-sm font-medium text-slate-900 dark:text-slate-200">
+                                    ...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="viewProgress" class="h-full overflow-y-auto p-6 md:p-10">
+                <div class="max-w-xl mx-auto">
+                    <h2 class="text-2xl font-display font-bold text-slate-900 dark:text-white mb-4">🏆 Ranking de XP
+                    </h2>
+                    <p class="text-slate-900 dark:text-slate-400 mb-6">Lista de desempenho dos alunos em ordem de
+                        experiência (XP).</p>
+
+                    <div class="mt-8">
+                        <div id="rankingList" class="space-y-3">
+                        </div>
+                        <p class="text-sm font-semibold text-slate-900 dark:text-slate-400 mt-6 text-center italic">
+                            Selecione um aluno na lateral esquerda para iniciar.</p>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <div id="chatFab" onclick="toggleChat()"><span id="chatBadge"
+            class="hidden absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full border-2 border-white"></span><i
+            data-lucide="message-circle" class="w-8 h-8"></i></div>
+
+    <div id="chatWidget">
+        <div class="resizer nw"></div>
+        <div class="resizer ne"></div>
+        <div class="resizer sw"></div>
+        <div class="resizer se"></div>
+
+        <div id="chatHeader"
+            class="chat-header p-4 bg-indigo-600 text-white flex justify-between items-center cursor-move">
+            <div class="flex items-center gap-2 font-bold"><i data-lucide="message-circle"
+                    class="w-5 h-5"></i><span>Chat da Turma</span></div>
+            <button onclick="toggleChat(event)" class="hover:bg-white/20 p-1 rounded"><i data-lucide="minus"
+                    class="w-5 h-5"></i></button>
+        </div>
+
+        <div class="chat-container">
+            <div class="chat-sidebar">
+                <div
+                    class="p-3 font-bold text-xs text-slate-900 dark:text-slate-400 uppercase border-b border-slate-100 dark:border-slate-700">
+                    Conversas</div>
+                <div id="contactsContainer" class="flex-1 overflow-y-auto p-2"></div>
+            </div>
+
+            <div class="chat-main">
+                <div id="roomHeader"
+                    class="p-3 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3 shrink-0 shadow-sm hidden">
+                    <button onclick="backToContacts()"
+                        class="md:hidden p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full text-slate-900 dark:text-slate-500"><i
+                            data-lucide="arrow-left" class="w-5 h-5"></i></button>
+                    <div id="roomAvatar"
+                        class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center font-bold text-xs">
+                        ?</div>
+                    <span id="roomName" class="font-bold text-sm truncate text-slate-900 dark:text-white">Nome</span>
+                </div>
+
+                <div id="roomEmpty" class="flex-1 flex flex-col items-center justify-center text-slate-400">
+                    <i data-lucide="message-square" class="w-12 h-12 opacity-20 mb-2"></i>
+                    <span class="text-sm">Selecione uma conversa ao lado</span>
+                </div>
+
+                <div id="msgList"
+                    class="flex-1 overflow-y-auto p-4 flex flex-col gap-3 bg-slate-50 dark:bg-slate-900/50 hidden">
+                </div>
+
+                <div id="roomInput"
+                    class="p-3 bg-white dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 flex gap-2 hidden">
+                    <input id="msgIn" class="input-modern rounded-full text-sm py-2.5 px-4" placeholder="Digite...">
+                    <button id="msgSend"
+                        class="p-2.5 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition shadow-lg"><i
+                            data-lucide="send" class="w-4 h-4"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalReg" class="modal-overlay">
+        <div class="modal-box">
+            <h3 class="font-bold mb-6 text-xl text-slate-900 dark:text-white">Novo Aluno</h3><input id="rName"
+                class="input-modern mb-3" placeholder="Nome"><input id="rEmail" class="input-modern mb-3"
+                placeholder="Email">
+            <div class="flex gap-3 mb-3"><input id="rAge" class="input-modern" placeholder="Idade"><input id="rPin"
+                    class="input-modern" placeholder="PIN"></div>
+            <div class="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl border border-indigo-100"><label
+                    class="text-[10px] font-bold text-indigo-900 dark:text-indigo-400 uppercase">Chave Gemini
+                    IA</label><input id="rKey" type="text" class="input-modern mt-1 text-xs"><a
+                    href="https://aistudio.google.com/app/apikey" target="_blank" class="link-api">Gerar Chave <i
+                        data-lucide="external-link" class="w-3 h-3"></i></a></div>
+            <div class="mt-6 flex gap-3"><button onclick="$('modalReg').style.display='none'"
+                    class="flex-1 py-3 font-bold text-slate-900 dark:text-slate-500">Cancelar</button><button
+                    id="btnSaveReg" class="flex-1 btn-gradient py-3 rounded-xl shadow-lg">Salvar</button></div>
+        </div>
+    </div>
+    <div id="modalEdit" class="modal-overlay">
+        <div class="modal-box">
+            <h3 class="font-bold mb-6 text-xl text-slate-900 dark:text-white">Configuração</h3><input id="uEName"
+                class="input-modern mb-3">
+            <div class="flex gap-3 mb-3"><input id="uEAge" class="input-modern" placeholder="Idade"><input id="uEPin"
+                    class="input-modern" placeholder="PIN"></div>
+            <div class="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                <label class="text-[10px] font-bold text-slate-900 dark:text-slate-400 uppercase">Chave Gemini
+                    IA</label><input id="uEKey" type="text" class="input-modern mt-1 text-xs"></div>
+            <div class="mt-6 space-y-3"><button id="btnSaveSelf"
+                    class="w-full btn-gradient py-3 rounded-xl">Salvar</button><button
+                    onclick="deleteUser(activeU.email)" class="w-full py-3 font-bold text-red-500">Excluir
+                    Conta</button><button onclick="$('modalEdit').style.display='none'"
+                    class="w-full text-xs text-slate-900 dark:text-slate-400">Fechar</button></div>
+        </div>
+    </div>
+    <div id="modalEditAdm" class="modal-overlay">
+        <div class="modal-box">
+            <h3 class="font-bold mb-4 text-slate-900 dark:text-white">Editar (Admin)</h3><input id="admEName"
+                class="input-modern mb-2">
+            <div class="flex gap-2 mb-2"><input id="admEAge" class="input-modern" placeholder="Idade"><input
+                    id="admEPin" class="input-modern" placeholder="PIN"></div><input id="admEKey"
+                class="input-modern"><button id="btnSaveAdm"
+                class="btn-gradient w-full py-2 rounded-lg mt-4">Salvar</button><button
+                onclick="$('modalEditAdm').style.display='none'"
+                class="w-full mt-2 text-xs text-slate-900 dark:text-slate-400 opacity-50">Fechar</button>
+        </div>
+    </div>
+    <div id="modalAdm" class="modal-overlay">
+        <div class="modal-box text-center">
+            <h3 class="font-bold mb-2 text-lg text-slate-900 dark:text-white">Acesso Profissional</h3><input id="adE"
+                class="input-modern mb-3" placeholder="Email"><input id="adP" type="password" class="input-modern mb-4"
+                placeholder="Senha"><button id="adOk" class="btn-gradient w-full py-3 rounded-xl">Entrar</button><button
+                onclick="$('modalAdm').style.display='none'"
+                class="mt-4 text-sm text-slate-900 dark:text-slate-400">Cancelar</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
