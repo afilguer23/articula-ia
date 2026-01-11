@@ -482,7 +482,8 @@
             <div id="viewEmpty" class="h-full flex flex-col items-center justify-center text-slate-400 hidden">
                 <div
                     class="w-24 h-24 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-6 animate-pulse">
-                    <i data-lucide="user" class="w-10 h-10 opacity-30"></i></div>
+                    <i data-lucide="user" class="w-10 h-10 opacity-30"></i>
+                </div>
                 <h3 class="font-display font-semibold text-xl">Selecione um Aluno</h3>
             </div>
 
@@ -499,7 +500,8 @@
                             <div class="flex flex-wrap gap-3 justify-center md:justify-start">
                                 <div
                                     class="px-4 py-1.5 rounded-full bg-emerald-100/50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-sm font-bold flex gap-2 border border-emerald-200 dark:border-emerald-500/20">
-                                    <i data-lucide="trophy" class="w-4 h-4"></i> <span id="dashXP">0</span> XP</div>
+                                    <i data-lucide="trophy" class="w-4 h-4"></i> <span id="dashXP">0</span> XP
+                                </div>
                                 <button onclick="$('modalEdit').style.display='flex'"
                                     class="px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-700/50 text-slate-900 dark:text-slate-400 text-sm font-semibold hover:bg-slate-200 flex gap-2"><i
                                         data-lucide="settings" class="w-4 h-4"></i> Config</button>
@@ -511,15 +513,50 @@
                             class="card-modern p-6 cursor-pointer hover:border-blue-500/50 transition duration-300 group">
                             <div
                                 class="w-14 h-14 rounded-2xl bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-4 group-hover:scale-110 transition">
-                                <i data-lucide="mic" class="w-7 h-7"></i></div>
+                                <i data-lucide="mic" class="w-7 h-7"></i>
+                            </div>
                             <h3 class="font-display font-bold text-xl text-slate-900 dark:text-white">Tutor IA</h3>
                         </div>
                         <div onclick="toggleChat()"
                             class="card-modern p-6 cursor-pointer hover:border-emerald-500/50 transition duration-300 group">
                             <div
                                 class="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-4 group-hover:scale-110 transition">
-                                <i data-lucide="message-circle" class="w-7 h-7"></i></div>
+                                <i data-lucide="message-circle" class="w-7 h-7"></i>
+                            </div>
                             <h3 class="font-display font-bold text-xl text-slate-900 dark:text-white">Chat</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NOVO: Estatísticas e Histórico -->
+                <div class="max-w-5xl mx-auto mt-6">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="card-modern p-4 text-center">
+                            <div class="text-3xl font-bold text-indigo-600 dark:text-indigo-400" id="statTotal">0</div>
+                            <div class="text-xs text-slate-500 mt-1">Exercícios</div>
+                        </div>
+                        <div class="card-modern p-4 text-center">
+                            <div class="text-3xl font-bold text-emerald-600 dark:text-emerald-400" id="statAvg">0</div>
+                            <div class="text-xs text-slate-500 mt-1">Média</div>
+                        </div>
+                        <div class="card-modern p-4 text-center">
+                            <div class="text-3xl font-bold text-yellow-600 dark:text-yellow-400" id="statBest">0</div>
+                            <div class="text-xs text-slate-500 mt-1">Melhor</div>
+                        </div>
+                        <div class="card-modern p-4 text-center">
+                            <div class="text-3xl font-bold text-red-600 dark:text-red-400" id="statWorst">0</div>
+                            <div class="text-xs text-slate-500 mt-1">Pior</div>
+                        </div>
+                    </div>
+
+                    <div class="card-modern p-6 mt-6">
+                        <h3
+                            class="font-display font-bold text-xl text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                            <i data-lucide="trending-up" class="w-5 h-5 text-indigo-600"></i>
+                            Evolução (Últimos 20 Exercícios)
+                        </h3>
+                        <div id="historyChartContainer" class="mt-4">
+                            <p class="text-center text-slate-400 py-8">Carregando...</p>
                         </div>
                     </div>
                 </div>
@@ -725,7 +762,8 @@
                     class="input-modern" placeholder="PIN"></div>
             <div class="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
                 <label class="text-[10px] font-bold text-slate-900 dark:text-slate-400 uppercase">Chave Gemini
-                    IA</label><input id="uEKey" type="text" class="input-modern mt-1 text-xs"></div>
+                    IA</label><input id="uEKey" type="text" class="input-modern mt-1 text-xs">
+            </div>
             <div class="mt-6 space-y-3"><button id="btnSaveSelf"
                     class="w-full btn-gradient py-3 rounded-xl">Salvar</button><button
                     onclick="deleteUser(activeU.email)" class="w-full py-3 font-bold text-red-500">Excluir

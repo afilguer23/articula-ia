@@ -170,7 +170,23 @@ async function processUserAudio() {
             if (refFeedbackAudioUrl) $('btnTipPlay').disabled = false; else $('btnTipPlay').disabled = true;
             $('micStatus').innerText = "Toque para gravar";
 
-            if (activeU) db.collection(`artifacts/${CONFIG.projectId}/public/data/profiles_v2`).doc(activeU.email).update({ xp: (activeU.xp || 0) + 10 });
+            // Atualizar XP
+            if (activeU) {
+                db.collection(`artifacts/${CONFIG.projectId}/public/data/profiles_v2`).doc(activeU.email).update({ xp: (activeU.xp || 0) + 10 });
+
+                // NOVO: Salvar histórico do exercício
+                await db.collection(`artifacts/${CONFIG.projectId}/public/data/exercises_history`).add({
+                    userId: activeU.email,
+                    userName: activeU.name,
+                    targetText: targetText,
+                    score: res.score || 0,
+                    feedback: res.feedback || '',
+                    mode: $('tMode')?.value || 'sentence',
+                    age: $('tAge')?.value || 5,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    date: new Date().toISOString()
+                });
+            }
         } catch (e) {
             console.error(e);
             $('micStatus').innerText = "Erro na análise: " + (e.message || "Verifique a chave API.");
@@ -306,11 +322,91 @@ window.route = (v) => {
 
         if (v === 'progress') {
             renderList();
+        } else if (v === 'dashboard' && activeU) {
+            // NOVO: Carregar histórico e renderizar gráfico
+            loadUserHistory();
         }
     } else {
         $('viewEmpty').classList.remove('hidden');
     }
     lucide.createIcons();
+}
+
+// NOVO: Função para carregar histórico do usuário
+async function loadUserHistory() {
+    if (!activeU) return;
+
+    try {
+        const snapshot = await db.collection(`artifacts/${CONFIG.projectId}/public/data/exercises_history`)
+            .where('userId', '==', activeU.email)
+            .orderBy('timestamp', 'desc')
+            .limit(20)
+            .get();
+
+        const history = [];
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            history.push(data);
+        });
+
+        renderHistoryChart(history.reverse()); // Reverse para mostrar do mais antigo pro mais recente
+    } catch (e) {
+        console.error('Erro ao carregar histórico:', e);
+    }
+}
+
+// NOVO: Renderizar gráfico de evolução
+function renderHistoryChart(history) {
+    const container = $('historyChartContainer');
+    if (!container) return;
+
+    if (history.length === 0) {
+        container.innerHTML = '<p class="text-center text-slate-400 py-8">Nenhum exercício realizado ainda</p>';
+        return;
+    }
+
+    // Preparar dados
+    const labels = history.map((ex, i) => `#${i + 1}`);
+    const scores = history.map(ex => ex.score || 0);
+    const avgScore = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1);
+
+    // Estatísticas
+    const stats = {
+        total: history.length,
+        avg: avgScore,
+        best: Math.max(...scores),
+        worst: Math.min(...scores)
+    };
+
+    // Atualizar estatísticas no DOM
+    if ($('statTotal')) $('statTotal').innerText = stats.total;
+    if ($('statAvg')) $('statAvg').innerText = stats.avg;
+    if ($('statBest')) $('statBest').innerText = stats.best;
+    if ($('statWorst')) $('statWorst').innerText = stats.worst;
+
+    // Criar gráfico ASCII simples (sem libs externas)
+    let chartHTML = '<div class="space-y-2">';
+
+    history.forEach((ex, i) => {
+        const percent = ex.score || 0;
+        let color = 'bg-red-500';
+        if (percent >= 80) color = 'bg-emerald-500';
+        else if (percent >= 50) color = 'bg-yellow-500';
+
+        chartHTML += `
+            <div class="flex items-center gap-3">
+                <span class="text-xs text-slate-500 w-8">#${i + 1}</span>
+                <div class="flex-1 h-8 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden relative">
+                    <div class="${color} h-full transition-all duration-500" style="width: ${percent}%"></div>
+                    <span class="absolute inset-0 flex items-center justify-center text-xs font-bold text-slate-900 dark:text-white">${percent}</span>
+                </div>
+                <span class="text-xs text-slate-400 w-24 truncate">${ex.targetText || ''}</span>
+            </div>
+        `;
+    });
+
+    chartHTML += '</div>';
+    container.innerHTML = chartHTML;
 }
 
 // --- BOTÃO GERAR (Com blindagem e salvamento correto) ---
