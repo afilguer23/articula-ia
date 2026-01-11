@@ -8,5 +8,11 @@
       "runtime": "nodejs18.x",
       "maxDuration": 10
     }
-  }
+  },
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ]
 }
