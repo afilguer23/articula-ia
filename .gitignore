@@ -33,3 +33,7 @@ yarn.lock
 # Build (caso adicione depois)
 dist/
 build/
+
+# Vercel
+.vercel
+.vercel/

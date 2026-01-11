@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "env": {
+    "FIREBASE_SERVICE_ACCOUNT": "@firebase-service-account"
+  },
+  "functions": {
+    "api/**/*.js": {
+      "runtime": "nodejs18.x",
+      "maxDuration": 10
+    }
+  }
+}
