@@ -1,0 +1,6 @@
+# Vercel ignore
+.git
+.gemini
+node_modules
+*.md
+!README.md
